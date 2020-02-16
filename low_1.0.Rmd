@@ -1,0 +1,75 @@
+---
+title: "low1"
+author: "Francis Fang"
+date: "2/15/2020"
+output: html_document
+---
+
+```{r}
+library(tigris) 
+library(leaflet) 
+library(tidyverse)
+
+options(tigris_use_cache = TRUE)
+
+low <- read.csv("data_low.csv")[ ,2:3]
+```
+
+```{r}
+char_zips <- zctas(cb = TRUE)
+        
+colnames(low) <- tolower(colnames(low))
+
+low$lnestab <- log(low$estab)
+char_zips <- geo_join(char_zips, low, 
+                              by_sp = "GEOID10", 
+                              by_df = "geo.id2",
+                              how = "left") 
+
+labels <- 
+  paste0(
+    "Zip Code: ",
+    char_zips@data$GEOID10, "<br/>",
+    "Establishment: ",
+   char_zips@data$estab) %>%
+  lapply(htmltools::HTML)
+
+
+pal <- colorNumeric(
+  palette = "Greens",
+  domain = char_zips@data$lnestab)
+```
+
+
+```{r}
+char_zips %>% 
+  leaflet(options = leafletOptions(preferCanvas = TRUE)) %>% 
+  setView(lng = -100, lat = 40, zoom = 4) %>%
+  # add base map
+  addProviderTiles("CartoDB.Positron", 
+                   options = providerTileOptions(updateWhenZooming = FALSE,
+                   updateWhenIdle = FALSE)) %>% 
+  # add zip codes
+  addPolygons(fillColor = ~pal(lnestab),
+              weight = 2,
+              opacity = 1,
+              color = "white",
+              dashArray = "3",
+              fillOpacity = 0.7,
+              highlight = highlightOptions(weight = 2,
+                                           color = "#666",
+                                           dashArray = "",
+                                           fillOpacity = 0.7,
+                                           bringToFront = TRUE),
+  label = labels) %>%
+  # add legend
+  addLegend(pal = pal, 
+            values = ~lnestab, 
+            opacity = 0.7, 
+            title = htmltools::HTML("ln(Establishment) <br> 
+                                    by Zip Code <br>
+                                    2012"),
+            position = "bottomright")
+```
+
+
